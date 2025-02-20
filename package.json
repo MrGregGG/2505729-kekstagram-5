@@ -1,6 +1,7 @@
 {
   "name": "kekstagram",
   "version": "29.0.0",
+  "type": "module",
   "private": true,
   "description": "Личный проект «Кекстаграм» от HTML Academy",
   "repository": {
@@ -23,5 +24,9 @@
   "engines": {
     "node": "18",
     "npm": "9"
+  },
+  "dependencies": {
+    "nouislider": "^15.8.1",
+    "pristinejs": "^1.1.0"
   }
 }
