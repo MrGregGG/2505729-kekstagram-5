@@ -1,71 +1,121 @@
-const AVATAR_COUNT = 6;
-const PHOTO_COUNT = 25;
-const MIN_LIKE = 15;
-const MAX_LIKE = 200;
-const COMMENT_COUNT = 30;
+import { getData } from './api.js';
+import { renderThumbnails } from './thumbnails.js';
+import { initForm } from './form.js';
 
-const DESCRIPTIONS = [
-  'Описание 1',
-  'Описание 2',
-  'Описание 3',
-  'Описание 4'
-];
+const photos = [];
+const RERENDER_DELAY = 500; // Задержка для устранения дребезга
+const RANDOM_PHOTOS_COUNT = 10; // Количество случайных фотографий
+const filtersContainer = document.querySelector('.img-filters'); // Блок фильтров
+const picturesContainer = document.querySelector('.pictures'); // Контейнер для фотографий
+const pictureTemplate = document.querySelector('#picture').content.querySelector('.picture'); // Шаблон фотографии
+const imgFiltersElement = document.querySelector('.img-filters');
+let currentPhotos = []; // Текущие фотографии
+let filteredPhotos = []; // Отфильтрованные фотографии
 
-const COMMENTS = [
-  'Всё отлично!',
-  'В целом всё неплохо. Но не всё.',
-  'Когда вы делаете фотографию, хорошо бы убирать палец из кадра. В конце концов это просто непрофессионально.',
-  'Моя бабушка случайно чихнула с фотоаппаратом в руках и у неё получилась фотография лучше.',
-  'Я поскользнулся на банановой кожуре и уронил фотоаппарат на кота и у меня получилась фотография лучше.',
-  'Лица у людей на фотке перекошены, как будто их избивают. Как можно было поймать такой неудачный момент?!'
-];
-
-const NAMES = [
-  'Лиза',
-  'Ира',
-  'Андрей',
-  'Илья',
-  'Марина',
-  'Дима',
-  'Вероника'
-];
-
-const getRandomInteger = (min, max) => {
-  const lower = Math.ceil(Math.min(Math.abs(min), Math.abs(max)));
-  const upper = Math.floor(Math.max(Math.abs(min), Math.abs(max)));
-  const result = Math.random() * (upper - lower + 1) + lower;
-
-  return Math.floor(result);
+const debounce = (callback, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => callback(...args), delay);
+  };
 };
 
-const getRandomElement = (items) => items[getRandomInteger(0, items.length - 1)];
+// Функция для получения случайных фотографий
+const getRandomPhotos = (photos) => {
+  const shuffled = photos.slice().sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, RANDOM_PHOTOS_COUNT);
+};
 
-const createMessage = () => Array.from(
-  { length: getRandomInteger(1, 2) },
-  () => getRandomElement(COMMENTS)
-).join(' ');
+// Функция для получения самых обсуждаемых фотографий
+const getDiscussedPhotos = (photos) => {
+  return photos.slice().sort((a, b) => b.comments.length - a.comments.length);
+};
 
-const createComment = () => ({
-  id: getRandomInteger(1, 25),
-  avatar: `img/avatar-${getRandomInteger(1, AVATAR_COUNT)}.svg`,
-  message: createMessage,
-  name: getRandomElement(NAMES)
-});
+// Функция для создания DOM-элемента фотографии
+const createPhotoElement = (photo) => {
+  const photoElement = pictureTemplate.cloneNode(true);
+  photoElement.querySelector('.picture__img').src = photo.url;
+  photoElement.querySelector('.picture__comments').textContent = photo.comments.length;
+  photoElement.querySelector('.picture__likes').textContent = photo.likes;
+  return photoElement;
+};
 
-const createPhoto = (index) => ({
-  id: index,
-  url: `photos/${index}.jpg`,
-  description: getRandomElement(DESCRIPTIONS),
-  likes: getRandomInteger(MIN_LIKE, MAX_LIKE),
-  comments: Array.from(
-    { length: getRandomInteger(0, COMMENT_COUNT) },
-    createComment)
-});
+// Функция для отрисовки фотографий
+const renderPhotos = (photos) => {
+  const fragment = document.createDocumentFragment();
+  photos.forEach((photo) => {
+    const photoElement = createPhotoElement(photo);
+    fragment.appendChild(photoElement);
+  });
+  picturesContainer.appendChild(fragment);
+};
 
-const getPhoto = () => Array.from(
-  {length: PHOTO_COUNT },
-  (_, photoIndex) => createPhoto(photoIndex + 1)
-);
+// Функция для удаления всех фотографий
+const clearPhotos = () => {
+  picturesContainer.querySelectorAll('.picture').forEach((photo) => photo.remove());
+};
 
+// Функция для обработки фильтрации
+const onFilterChange = debounce((filter) => {
+  clearPhotos(); // Удаляем старые фотографии
 
-getPhoto();
+  switch (filter) {
+    case 'filter-default':
+      filteredPhotos = currentPhotos; // Фотографии по умолчанию
+      break;
+    case 'filter-random':
+      filteredPhotos = getRandomPhotos(currentPhotos); // Случайные фотографии
+      break;
+    case 'filter-discussed':
+      filteredPhotos = getDiscussedPhotos(currentPhotos); // Самые обсуждаемые фотографии
+      break;
+  }
+
+  renderThumbnails(filteredPhotos); // Отрисовываем фотографии
+}, RERENDER_DELAY);
+
+// Функция для инициализации фильтров
+const initFilters = () => {
+  filtersContainer.classList.remove('img-filters--inactive'); // Показываем блок фильтров
+
+  filtersContainer.addEventListener('click', (evt) => {
+    if (evt.target.classList.contains('img-filters__button')) {
+      // Убираем активный класс у предыдущей кнопки
+      filtersContainer.querySelector('.img-filters__button--active').classList.remove('img-filters__button--active');
+      // Добавляем активный класс нажатой кнопке
+      evt.target.classList.add('img-filters__button--active');
+
+      // Вызываем функцию фильтрации
+      onFilterChange(evt.target.id);
+    }
+  });
+};
+
+// Функция для загрузки данных с сервера
+const loadPhotos = async () => {
+  try {
+    currentPhotos = await getData(); // Загружаем данные
+    filteredPhotos = currentPhotos; // По умолчанию показываем все фотографии
+    imgFiltersElement.classList.remove('img-filters--inactive'); // Показываем фильтры
+    initFilters(); // Инициализируем фильтры
+    renderThumbnails(filteredPhotos); // Добавляем обработку кликов для отображения фото на весь экран
+  } catch (error) {
+    console.error('Ошибка загрузки данных:', error);
+    // Показать сообщение об ошибке пользователю
+    const errorBlock = document.createElement('div');
+    errorBlock.textContent = 'Не удалось загрузить фотографии. Попробуйте позже.';
+    errorBlock.style.cssText = `
+      color: red;
+      text-align: center;
+      font-size: 20px;
+      margin-top: 20px;
+    `;
+    document.body.appendChild(errorBlock);
+  }
+};
+
+// Загружаем фотографии при старте
+loadPhotos();
+
+// Инициализируем форму
+initForm(photos, renderThumbnails);
