@@ -10,7 +10,6 @@
 </head>
 
 <body>
-  <script src="/js/main.js"></script>
   <main>
 
     <!-- Фильтрация изображений от других пользователей -->
@@ -31,7 +30,7 @@
       <section class="img-upload">
         <div class="img-upload__wrapper">
           <h2 class="img-upload__title  visually-hidden">Загрузка фотографии</h2>
-          <form class="img-upload__form" id="upload-select-image" autocomplete="off">
+          <form class="img-upload__form" id="upload-select-image" autocomplete="off" method="POST" enctype="multipart/form-data" action="https://29.javascript.htmlacademy.pro/kekstagram">
 
             <!-- Изначальное состояние поля для загрузки изображения -->
             <fieldset class="img-upload__start">
@@ -227,6 +226,10 @@
       </div>
     </section>
   </template>
-
+  <script src="https://cdn.jsdelivr.net/npm/pristinejs@1.0.0/dist/pristine.min.js"></script>
+  <script type="module" src="js/api.js" defer></script>
+  <script type="module" src='js/main.js' defer></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
 </body>
 </html>
